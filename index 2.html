@@ -1,0 +1,781 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ごはんサーチ</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="ごはんサーチ">
+<meta name="theme-color" content="#fff8f1" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1a1512" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-512.png">
+<link rel="icon" href="icon-512.png">
+<style>
+:root{
+  --bg:#fff8f1; --card:#ffffff; --text:#2a211c; --sub:#7b6d64; --line:#eadfd5;
+  --accent:#e2572b; --accent-soft:#fde6dc; --star:#f2a33a; --err:#c53b2a;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#1a1512; --card:#26201c; --text:#f3ebe5; --sub:#a8988d; --line:#3a312b;
+         --accent:#ff7a4d; --accent-soft:#3d2419; }
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Hiragino Kaku Gothic ProN",sans-serif;
+  -webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent}
+body{padding-bottom:calc(64px + env(safe-area-inset-bottom))}
+body.noscroll{overflow:hidden}
+button{cursor:pointer}
+[hidden]{display:none!important}
+
+.top{position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;
+  padding:calc(env(safe-area-inset-top) + 10px) 16px 10px;
+  background:color-mix(in srgb,var(--bg) 88%,transparent);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+.top h1{font-size:22px;margin:0;font-weight:800;letter-spacing:.02em}
+.iconbtn{border:0;background:var(--accent-soft);color:var(--accent);width:38px;height:38px;border-radius:50%;
+  display:grid;place-items:center}
+.iconbtn svg{width:20px;height:20px}
+
+.controls{padding:10px 16px 4px;display:grid;gap:8px}
+.seg{display:flex;background:var(--line);border-radius:10px;padding:3px;gap:3px}
+.seg button{flex:1;border:0;background:transparent;color:var(--text);font:inherit;font-size:14px;padding:7px 0;border-radius:8px}
+.seg button.on{background:var(--card);font-weight:700;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+
+.search{display:flex;gap:8px;padding:12px 16px 0}
+.search input{flex:1;min-width:0;font-size:16px;padding:11px 14px;border-radius:12px;border:1px solid var(--line);
+  background:var(--card);color:var(--text)}
+.primary{border:0;background:var(--accent);color:#fff;font:inherit;font-weight:700;padding:11px 16px;border-radius:12px}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:10px 16px 2px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;border:1px solid var(--line);background:var(--card);color:var(--text);font:inherit;font-size:14px;
+  padding:7px 13px;border-radius:999px}
+.chip.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700}
+
+.status{margin:20px 16px;padding:18px;text-align:center;color:var(--sub);font-size:15px;line-height:1.6}
+.status.error{color:var(--err)}
+.list{list-style:none;margin:6px 0 0;padding:0 16px;display:grid;gap:10px;transition:opacity .2s}
+.list.dim{opacity:.5}
+.row{width:100%;display:flex;align-items:center;gap:12px;padding:10px;border:0;border-radius:16px;
+  background:var(--card);color:inherit;font:inherit;text-align:left;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+.row img,.noimg{width:76px;height:76px;border-radius:12px;object-fit:cover;flex:none;background:var(--line)}
+.noimg{display:grid;place-items:center;font-size:28px}
+.rowtext{flex:1;min-width:0;display:grid;gap:3px}
+.name{font-weight:700;font-size:16px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.genre,.meta,.count{font-size:13px;color:var(--sub)}
+.rating{font-size:14px;display:flex;align-items:center;gap:4px}
+.rating.none{color:var(--sub)}
+.star{color:var(--star)}
+.chev{color:var(--sub);font-size:22px}
+
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;display:flex;
+  background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+.tabs button{flex:1;border:0;background:none;color:var(--sub);font:inherit;font-size:11px;padding:8px 0 6px;
+  display:grid;justify-items:center;gap:2px}
+.tabs svg{width:24px;height:24px}
+.tabs button.on{color:var(--accent);font-weight:700}
+
+.detail{position:fixed;inset:0;z-index:10;background:var(--bg);overflow-y:auto;-webkit-overflow-scrolling:touch}
+.detail-head{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:6px;
+  padding:calc(env(safe-area-inset-top) + 8px) 12px 8px;
+  background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--line)}
+.back{border:0;background:none;color:var(--accent);font:inherit;font-size:17px;padding:6px 8px 6px 0;flex:none}
+.detail-head span{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.detail-body{padding:0 0 calc(24px + env(safe-area-inset-bottom))}
+.photos{display:flex;gap:8px;overflow-x:auto;padding:12px 16px 0;scroll-snap-type:x mandatory;scrollbar-width:none}
+.photos::-webkit-scrollbar{display:none}
+.photos img{flex:none;width:78%;max-width:340px;aspect-ratio:4/3;object-fit:cover;border-radius:16px;
+  scroll-snap-align:center;background:var(--line)}
+.attr{font-size:11px;color:var(--sub);margin:4px 16px 0}
+.card{background:var(--card);margin:12px 16px 0;padding:16px;border-radius:18px}
+.card h2{margin:0 0 4px;font-size:21px;line-height:1.3}
+.card h3{margin:0 0 10px;font-size:17px}
+.addr{font-size:14px;line-height:1.5;margin:10px 0 0}
+.btnrow{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.btn{display:inline-flex;align-items:center;gap:4px;padding:9px 13px;border-radius:12px;background:var(--accent-soft);
+  color:var(--accent);text-decoration:none;font-weight:700;font-size:14px}
+details{margin-top:12px;font-size:14px}
+summary{cursor:pointer;font-weight:600}
+.hours{list-style:none;padding:6px 0 0;margin:0;display:grid;gap:3px;color:var(--sub)}
+.videos{list-style:none;padding:0;margin:12px 0 0;display:grid;gap:12px}
+.video{display:flex;gap:10px;color:inherit;text-decoration:none}
+.video img{width:132px;aspect-ratio:16/9;object-fit:cover;border-radius:10px;flex:none;background:var(--line)}
+.vtitle{font-size:14px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.vmeta{font-size:12px;color:var(--sub);margin-top:3px}
+.linkrow{display:flex;align-items:center;gap:12px;padding:12px 0;color:inherit;text-decoration:none;border-top:1px solid var(--line)}
+.linkrow:first-of-type{border-top:0}
+.linkrow .ic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-weight:800;color:#fff;flex:none;font-size:15px}
+.linkrow .lt{flex:1;min-width:0}
+.linkrow .lt b{display:block;font-size:15px}
+.linkrow .lt small{color:var(--sub);font-size:12px}
+.review{padding:12px 0;border-top:1px solid var(--line)}
+.review:first-of-type{border-top:0}
+.rhead{display:flex;justify-content:space-between;gap:8px;font-size:14px}
+.review p{margin:6px 0 0;font-size:14px;line-height:1.55;display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden}
+.note{font-size:13px;color:var(--sub);line-height:1.55}
+.note.error{color:var(--err)}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--line);border-top-color:var(--accent);
+  border-radius:50%;animation:spin .8s linear infinite;vertical-align:-2px;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.settings{padding-bottom:16px}
+.field{width:100%;font-size:16px;padding:11px 14px;border-radius:12px;border:1px solid var(--line);
+  background:var(--bg);color:var(--text);margin:8px 0 10px;font-family:ui-monospace,Menlo,monospace}
+.btnline{display:flex;gap:8px;flex-wrap:wrap}
+.ghost{border:1px solid var(--line);background:var(--card);color:var(--text);font:inherit;padding:10px 14px;border-radius:12px}
+.card ol{padding-left:20px;margin:6px 0 0;font-size:14px;line-height:1.7}
+.status{white-space:pre-line}
+.diag{margin:12px 0 0;padding:12px;border-radius:12px;background:var(--bg);font-size:12px;line-height:1.6;
+  white-space:pre-wrap;word-break:break-all;font-family:ui-monospace,Menlo,monospace}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <h1 id="title">周辺のおすすめ</h1>
+  <button class="iconbtn" id="locateBtn" aria-label="現在地を更新">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="7"/></svg>
+  </button>
+</header>
+
+<main>
+  <section id="view-nearby">
+    <div class="controls">
+      <div class="seg" id="nearbyRadius"></div>
+      <div class="seg" id="nearbySort"></div>
+    </div>
+    <div class="status" id="nearbyStatus" hidden></div>
+    <ul class="list" id="nearbyList"></ul>
+  </section>
+
+  <section id="view-dish" hidden>
+    <form class="search" id="dishForm">
+      <input type="search" id="dishInput" placeholder="例:担々麺、ハンバーグ" enterkeyhint="search" autocomplete="off">
+      <button class="primary">検索</button>
+    </form>
+    <div class="chips" id="chips"></div>
+    <div class="controls">
+      <div class="seg" id="dishRadius"></div>
+      <div class="seg" id="dishSort"></div>
+    </div>
+    <div class="status" id="dishStatus" hidden></div>
+    <ul class="list" id="dishList"></ul>
+  </section>
+
+  <section id="view-settings" class="settings" hidden>
+    <div class="card">
+      <h3>Google APIキー</h3>
+      <p class="note">キーはこのiPhoneの中だけに保存されます。GitHubには公開されません。</p>
+      <input class="field" id="keyInput" type="password" placeholder="AIza…" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+      <div class="btnline">
+        <button class="primary" id="saveKey">保存して再読み込み</button>
+        <button class="ghost" id="toggleKey" type="button">表示</button>
+      </div>
+    </div>
+    <div class="card">
+      <h3>動作チェック</h3>
+      <p class="note">うまく動かないときに押してください。どこで止まっているかを順番に調べます。</p>
+      <div class="btnline">
+        <button class="primary" id="runDiag" type="button">チェックする</button>
+        <button class="ghost" id="copyDiag" type="button" hidden>結果をコピー</button>
+      </div>
+      <pre class="diag" id="diagOut" hidden></pre>
+    </div>
+    <div class="card">
+      <h3>位置情報が使えないとき</h3>
+      <ol>
+        <li>iPhoneの「設定」→「プライバシーとセキュリティ」</li>
+        <li>「位置情報サービス」→「Safari Webサイト」</li>
+        <li>「このAppの使用中」を選ぶ</li>
+      </ol>
+    </div>
+    <div class="card">
+      <h3>データの節約</h3>
+      <p class="note">YouTubeは1日の検索回数に上限があるため、検索結果を12時間保存して使い回しています。</p>
+      <button class="ghost" id="clearCache" type="button">保存した動画検索結果を消す</button>
+      <p class="note" id="cacheMsg"></p>
+    </div>
+    <div class="card">
+      <p class="note">お店の情報・写真・口コミ:Google マップ<br>動画:YouTube</p>
+    </div>
+  </section>
+</main>
+
+<section class="detail" id="detail" hidden>
+  <div class="detail-head">
+    <button class="back" id="backBtn">‹ 戻る</button>
+    <span id="detailTitle"></span>
+  </div>
+  <div class="detail-body" id="detailBody"></div>
+</section>
+
+<nav class="tabs">
+  <button data-tab="nearby">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>
+    周辺
+  </button>
+  <button data-tab="dish">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v5a2 2 0 0 0 4 0V3M7 3v18M17 3c-1.7 0-3 2-3 5.5S15.3 13 17 13v8"/></svg>
+    料理で探す
+  </button>
+  <button data-tab="settings">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>
+    設定
+  </button>
+</nav>
+
+<script>
+'use strict';
+
+// ===== 小道具 =====
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+// エラーの中身をできるだけ詳しく文字にする
+function errText(e) {
+  if (!e) return '不明なエラー';
+  if (typeof e === 'string') return e;
+  const parts = [];
+  if (e.name && e.name !== 'Error') parts.push(e.name);
+  parts.push(e.message || String(e));
+  if (e.code) parts.push(`code=${e.code}`);
+  if (e.endpoint) parts.push(`endpoint=${e.endpoint}`);
+  const stack = String(e.stack || '').split('\n').slice(0, 2).join(' | ');
+  if (stack) parts.push(stack);
+  return parts.join(' / ');
+}
+const withTimeout = (promise, ms, label) => Promise.race([
+  promise,
+  new Promise((_, reject) => setTimeout(() => reject(new Error(`${label}が${ms / 1000}秒以内に終わりませんでした`)), ms)),
+]);
+function decodeEntities(s) { const t = document.createElement('textarea'); t.innerHTML = s ?? ''; return t.value; }
+
+const RADII = [[500, '500m'], [1000, '1km'], [3000, '3km'], [5000, '5km']];
+const SORTS = [['popular', '人気順'], ['rating', '評価順'], ['distance', '近い順']];
+const VIDEO_ORDERS = [['relevance', '関連度順'], ['date', '新着順']];
+// よく使う料理名(自由に書き換えてOK)
+const PRESETS = ['ラーメン', '焼肉', '寿司', 'お好み焼き', 'たこ焼き', '串カツ', 'うどん', 'カレー', '焼き鳥', '餃子', 'カフェ', 'スイーツ'];
+const TITLES = { nearby: '周辺のおすすめ', dish: '料理で探す', settings: '設定' };
+// 一覧で取る項目(多いほど料金が上がるので絞っている)
+const LIST_FIELDS = ['id', 'displayName', 'formattedAddress', 'rating', 'userRatingCount', 'location',
+  'priceLevel', 'photos', 'googleMapsURI', 'primaryTypeDisplayName'];
+const DETAIL_FIELDS = ['nationalPhoneNumber', 'websiteURI', 'regularOpeningHours', 'reviews'];
+
+let apiKey = store.get('apiKey', '');
+let mapsAuthError = null;
+const state = {
+  loc: null,
+  locError: null,
+  nearby: { radius: store.get('nearbyRadius', 1000), sort: 'popular', places: [], sorted: [], loading: false, error: null, lastKey: null, token: 0 },
+  dish: { radius: store.get('dishRadius', 3000), sort: 'popular', places: [], sorted: [], loading: false, error: null, lastKey: null, token: 0,
+          query: store.get('lastDish', '') },
+};
+const video = { order: 'relevance', query: '', items: [], loading: false, error: null, token: 0 };
+let currentPlace = null;
+
+// ===== Google Maps JavaScript API の読み込み(公式の読み込みコード) =====
+function loadMaps(key) {
+  (g=>{var h,a,k,p="The Google Maps JavaScript API",c="google",l="importLibrary",q="__ib__",m=document,b=window;b=b[c]||(b[c]={});var d=b.maps||(b.maps={}),r=new Set,e=new URLSearchParams,u=()=>h||(h=new Promise(async(f,n)=>{await (a=m.createElement("script"));e.set("libraries",[...r]+"");for(k in g)e.set(k.replace(/[A-Z]/g,t=>"_"+t[0].toLowerCase()),g[k]);e.set("callback",c+".maps."+q);a.src=`https://maps.${c}apis.com/maps/api/js?`+e;d[q]=f;a.onerror=()=>h=n(Error(p+" could not load."));a.nonce=m.querySelector("script[nonce]")?.nonce||"";m.head.append(a)}));d[l]?console.warn(p+" only loads once. Ignoring:",g):d[l]=(f,...n)=>r.add(f)&&u().then(()=>d[l](f,...n))})({ key, v: 'weekly', language: 'ja', region: 'JP' });
+}
+// キーが無効・このサイトが許可されていないときに Google から呼ばれる
+window.gm_authFailure = () => {
+  mapsAuthError = 'Google マップのAPIキーが使えませんでした。キーの「ウェブサイトの制限」にこのサイトのURLが入っているか、「Maps JavaScript API」と「Places API (New)」が有効か確認してください。';
+  state.nearby.loading = false; state.dish.loading = false;
+  renderList('nearby'); renderList('dish');
+};
+
+// ===== お店の検索 =====
+async function searchNearby(center, radius) {
+  const { Place, SearchNearbyRankPreference } = await google.maps.importLibrary('places');
+  const { places } = await Place.searchNearby({
+    fields: LIST_FIELDS,
+    locationRestriction: { center, radius },
+    includedTypes: ['restaurant', 'cafe'],
+    maxResultCount: 20,
+    rankPreference: SearchNearbyRankPreference?.POPULARITY ?? 'POPULARITY',
+    language: 'ja',
+    region: 'jp',
+  });
+  return places || [];
+}
+
+async function searchText(query, center, radius) {
+  const { Place } = await google.maps.importLibrary('places');
+  // 半径から四角い範囲を作り、その中だけに絞る
+  const dLat = radius / 111000;
+  const dLng = radius / (111000 * Math.cos(center.lat * Math.PI / 180));
+  const { places } = await Place.searchByText({
+    textQuery: query,
+    fields: LIST_FIELDS,
+    locationRestriction: { north: center.lat + dLat, south: center.lat - dLat, east: center.lng + dLng, west: center.lng - dLng },
+    maxResultCount: 20,
+    language: 'ja',
+    region: 'jp',
+  });
+  return places || [];
+}
+
+async function runSearch(kind, { force = false } = {}) {
+  const s = state[kind];
+  if (!apiKey || mapsAuthError || !state.loc) { renderList(kind); return; }
+  if (kind === 'dish' && !s.query) {
+    s.places = []; s.error = null; s.lastKey = null; s.loading = false; s.token++;
+    renderList(kind); return;
+  }
+  const key = `${s.query || ''}|${state.loc.lat.toFixed(3)},${state.loc.lng.toFixed(3)}|${s.radius}`;
+  if (!force && key === s.lastKey) { renderList(kind); return; }
+  s.lastKey = key;
+  const token = ++s.token;
+  s.loading = true; s.error = null;
+  renderList(kind);
+  try {
+    const places = kind === 'nearby'
+      ? await searchNearby(state.loc, s.radius)
+      : await searchText(s.query, state.loc, s.radius);
+    if (token !== s.token) return;
+    s.places = places;
+  } catch (e) {
+    if (token !== s.token) return;
+    console.error(e);
+    s.error = `お店の検索に失敗しました。(${errText(e)})\n「設定」タブの「動作チェック」で原因を調べられます。`;
+    s.lastKey = null;
+  } finally {
+    if (token === s.token) { s.loading = false; renderList(kind); }
+  }
+}
+
+// ===== 並び替え・表示用の計算 =====
+const score = (p) => (p.rating ?? 0) * Math.log10((p.userRatingCount ?? 0) + 1); // 評価 × log10(口コミ数+1)
+
+function placeDistance(p) {
+  if (!state.loc || !p.location) return null;
+  const toR = (x) => x * Math.PI / 180;
+  const lat = p.location.lat(), lng = p.location.lng();
+  const dLat = toR(lat - state.loc.lat), dLng = toR(lng - state.loc.lng);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toR(state.loc.lat)) * Math.cos(toR(lat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * 6371000 * Math.asin(Math.sqrt(a));
+}
+
+function sortPlaces(list, sort) {
+  const arr = [...list];
+  if (sort === 'rating') arr.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0) || (b.userRatingCount ?? 0) - (a.userRatingCount ?? 0));
+  else if (sort === 'distance') arr.sort((a, b) => (placeDistance(a) ?? Infinity) - (placeDistance(b) ?? Infinity));
+  else arr.sort((a, b) => score(b) - score(a));
+  return arr;
+}
+
+const fmtDist = (m) => m < 1000 ? `${Math.round(m / 10) * 10}m` : `${(m / 1000).toFixed(1)}km`;
+
+function priceText(level) {
+  const v = String(level ?? '').replace('PRICE_LEVEL_', '');
+  return { INEXPENSIVE: '¥', MODERATE: '¥¥', EXPENSIVE: '¥¥¥', VERY_EXPENSIVE: '¥¥¥¥' }[v] || null;
+}
+
+function cleanAddress(addr) {
+  return (addr || '').replace('日本、', '').replace(/〒\d{3}-\d{4}\s*/, '');
+}
+
+// YouTube検索用の地域名(例:「平野区」「渋谷区」「京都市」)
+function areaHint(addr) {
+  const a = cleanAddress(addr).replace(/^(東京都|北海道|京都府|大阪府|.{2,3}県)/, '');
+  const m = a.match(/^(.+?[市区町村])(.+?区)?/);
+  return m ? (m[2] || m[1]) : '';
+}
+
+function ratingHTML(r, c) {
+  if (r == null) return '<div class="rating none">評価なし</div>';
+  return `<div class="rating"><span class="star">★</span><b>${r.toFixed(1)}</b>${c != null ? `<span class="count">(${c.toLocaleString()}件)</span>` : ''}</div>`;
+}
+
+function relTime(iso) {
+  const t = new Date(iso).getTime();
+  if (!t) return '';
+  const rtf = new Intl.RelativeTimeFormat('ja', { numeric: 'auto' });
+  const diff = (t - Date.now()) / 1000;
+  const units = [['year', 31536000], ['month', 2592000], ['week', 604800], ['day', 86400], ['hour', 3600], ['minute', 60]];
+  for (const [u, sec] of units) if (Math.abs(diff) >= sec) return rtf.format(Math.round(diff / sec), u);
+  return 'たった今';
+}
+
+// ===== 一覧の描画 =====
+function rowHTML(p, i) {
+  const ph = p.photos?.[0];
+  const img = ph ? `<img loading="lazy" src="${esc(ph.getURI({ maxWidth: 200, maxHeight: 200 }))}" alt="">` : '<div class="noimg">🍽</div>';
+  const d = placeDistance(p);
+  const meta = [d != null ? `🚶 ${fmtDist(d)}` : null, priceText(p.priceLevel)].filter(Boolean).map(esc).join(' ・ ');
+  return `<li><button class="row" data-i="${i}">${img}<div class="rowtext">
+    <div class="name">${esc(p.displayName)}</div>
+    ${p.primaryTypeDisplayName ? `<div class="genre">${esc(p.primaryTypeDisplayName)}</div>` : ''}
+    ${ratingHTML(p.rating, p.userRatingCount)}
+    ${meta ? `<div class="meta">${meta}</div>` : ''}
+  </div><span class="chev">›</span></button></li>`;
+}
+
+function renderList(kind) {
+  const s = state[kind];
+  const list = $(`#${kind}List`), status = $(`#${kind}Status`);
+  let msg = '', spinner = false, isErr = false;
+  if (!apiKey) msg = '最初に「設定」タブでAPIキーを登録してください。';
+  else if (mapsAuthError) { msg = mapsAuthError; isErr = true; }
+  else if (s.error && !s.places.length) { msg = s.error; isErr = true; }
+  else if (!state.loc) {
+    if (state.locError) { msg = state.locError; isErr = true; } else { msg = '現在地を取得しています…'; spinner = true; }
+  }
+  else if (kind === 'dish' && !s.query) msg = '料理名を入力するか、上のジャンルを選んでください。';
+  else if (s.loading && !s.places.length) { msg = 'お店を探しています…'; spinner = true; }
+  else if (!s.places.length) msg = kind === 'dish'
+    ? `この範囲に「${s.query}」のお店が見つかりませんでした。範囲を広げてみてください。`
+    : 'この範囲にお店が見つかりませんでした。範囲を広げてみてください。';
+
+  status.className = 'status' + (isErr ? ' error' : '');
+  status.innerHTML = (spinner ? '<span class="spinner"></span>' : '') + esc(msg);
+  status.hidden = !msg;
+
+  s.sorted = sortPlaces(s.places, s.sort);
+  list.innerHTML = s.sorted.map(rowHTML).join('');
+  list.classList.toggle('dim', s.loading && s.places.length > 0);
+}
+
+function renderSeg(el, options, current, onChange) {
+  el.innerHTML = options.map(([v, label]) =>
+    `<button type="button" data-v="${esc(v)}" class="${String(v) === String(current) ? 'on' : ''}">${esc(label)}</button>`).join('');
+  el.onclick = (e) => { const b = e.target.closest('button'); if (b) onChange(b.dataset.v); };
+}
+
+function renderControls(kind) {
+  const s = state[kind];
+  renderSeg($(`#${kind}Radius`), RADII, s.radius, (v) => {
+    s.radius = Number(v); store.set(`${kind}Radius`, s.radius);
+    renderControls(kind); runSearch(kind);
+  });
+  renderSeg($(`#${kind}Sort`), SORTS, s.sort, (v) => {
+    s.sort = v; renderControls(kind); renderList(kind); window.scrollTo({ top: 0 });
+  });
+}
+
+function renderChips() {
+  $('#chips').innerHTML = PRESETS.map((n) =>
+    `<button type="button" class="chip ${n === state.dish.query ? 'on' : ''}" data-q="${esc(n)}">${esc(n)}</button>`).join('');
+}
+
+function setDish(q) {
+  state.dish.query = q.trim();
+  store.set('lastDish', state.dish.query);
+  $('#dishInput').value = state.dish.query;
+  $('#dishInput').blur();
+  renderChips();
+  runSearch('dish');
+}
+
+// ===== 詳細画面 =====
+async function openDetail(p) {
+  currentPlace = p;
+  $('#detailTitle').textContent = p.displayName || '';
+  $('#detail').hidden = false;
+  $('#detail').scrollTop = 0;
+  document.body.classList.add('noscroll');
+  video.order = 'relevance';
+  renderDetail(p, null);
+  loadVideos();
+  try {
+    const { place } = await p.fetchFields({ fields: DETAIL_FIELDS });
+    if (currentPlace === p) renderDetail(p, place);
+  } catch (e) {
+    if (currentPlace === p) renderDetail(p, `詳細情報を読み込めませんでした。(${errText(e)})`);
+  }
+}
+
+function closeDetail() {
+  currentPlace = null;
+  video.token++;
+  $('#detail').hidden = true;
+  document.body.classList.remove('noscroll');
+}
+
+const linkBtn = (href, icon, label, blank = true) =>
+  `<a class="btn" href="${esc(href)}"${blank ? ' target="_blank" rel="noopener"' : ''}>${icon} ${esc(label)}</a>`;
+const linkRow = (href, icon, bg, title, sub) =>
+  `<a class="linkrow" href="${esc(href)}" target="_blank" rel="noopener"><span class="ic" style="background:${bg}">${icon}</span><span class="lt"><b>${esc(title)}</b><small>${esc(sub)}</small></span><span class="chev">›</span></a>`;
+
+function renderDetail(p, d) {
+  const loaded = d && typeof d === 'object';
+  const photos = (p.photos || []).slice(0, 6);
+  const attr = photos[0]?.authorAttributions?.[0]?.displayName;
+  const area = areaHint(p.formattedAddress);
+  video.query = area ? `${p.displayName} ${area}` : p.displayName;
+  const addr = cleanAddress(p.formattedAddress);
+
+  const btns = [];
+  if (p.googleMapsURI) btns.push(linkBtn(p.googleMapsURI, '🗺', 'Googleマップ'));
+  if (loaded && d.nationalPhoneNumber) btns.push(linkBtn('tel:' + d.nationalPhoneNumber.replace(/[^\d+]/g, ''), '📞', '電話', false));
+  if (loaded && d.websiteURI) btns.push(linkBtn(d.websiteURI, '🌐', '公式サイト'));
+  const hours = loaded ? d.regularOpeningHours?.weekdayDescriptions : null;
+  const reviews = loaded ? (d.reviews || []).slice(0, 5) : [];
+
+  const tag = (p.displayName || '').replace(/[\s\p{P}\p{S}]/gu, '');
+  const xURL = 'https://x.com/search?' + new URLSearchParams({ q: p.displayName, f: 'live' });
+  const igURL = 'https://www.instagram.com/explore/tags/' + encodeURIComponent(tag) + '/';
+  const ytURL = 'https://www.youtube.com/results?' + new URLSearchParams({ search_query: video.query });
+
+  $('#detailBody').innerHTML = `
+    ${photos.length ? `<div class="photos">${photos.map((ph) => `<img src="${esc(ph.getURI({ maxWidth: 800 }))}" alt="">`).join('')}</div>
+      <p class="attr">写真:${esc(attr || 'Google マップ')}</p>` : ''}
+    <div class="card">
+      <h2>${esc(p.displayName)}</h2>
+      ${p.primaryTypeDisplayName ? `<div class="genre">${esc(p.primaryTypeDisplayName)}</div>` : ''}
+      ${ratingHTML(p.rating, p.userRatingCount)}
+      ${addr ? `<p class="addr">📍 ${esc(addr)}</p>` : ''}
+      <div class="btnrow">${btns.join('')}</div>
+      ${hours?.length ? `<details><summary>🕒 営業時間</summary><ul class="hours">${hours.map((h) => `<li>${esc(h)}</li>`).join('')}</ul></details>` : ''}
+      ${d === null ? '<p class="note"><span class="spinner"></span>電話番号・営業時間・口コミを読み込み中…</p>' : ''}
+      ${typeof d === 'string' ? `<p class="note error">${esc(d)}</p>` : ''}
+    </div>
+    <div class="card">
+      <h3>YouTube</h3>
+      <div class="seg" id="videoSeg"></div>
+      <ul class="videos" id="videoList"></ul>
+      <p class="note">「${esc(video.query)}」で検索した結果です。別のお店の動画が混ざることがあります。</p>
+    </div>
+    <div class="card">
+      <h3>SNSで最新情報をチェック</h3>
+      ${linkRow(xURL, '𝕏', '#111', 'X で最新の投稿を見る', p.displayName)}
+      ${tag ? linkRow(igURL, '◎', 'linear-gradient(45deg,#f9a33a,#e1306c,#833ab4)', 'Instagram のハッシュタグを見る', '#' + tag) : ''}
+      ${linkRow(ytURL, '▶', '#e62117', 'YouTube でもっと探す', video.query)}
+    </div>
+    ${reviews.length ? `<div class="card"><h3>Google の口コミ</h3>${reviews.map(reviewHTML).join('')}</div>` : ''}
+  `;
+  renderSeg($('#videoSeg'), VIDEO_ORDERS, video.order, (v) => { video.order = v; renderSeg($('#videoSeg'), VIDEO_ORDERS, v, () => {}); loadVideos(); });
+  renderVideos();
+}
+
+function reviewHTML(r) {
+  const n = Math.max(0, Math.min(5, Math.round(r.rating ?? 0)));
+  return `<div class="review">
+    <div class="rhead"><b>${esc(r.authorAttribution?.displayName || '匿名')}</b><span class="star">${'★'.repeat(n)}</span></div>
+    ${r.relativePublishTimeDescription ? `<div class="note">${esc(r.relativePublishTimeDescription)}</div>` : ''}
+    ${r.text ? `<p>${esc(r.text)}</p>` : ''}
+  </div>`;
+}
+
+// ===== YouTube =====
+async function youtubeSearch(q, order) {
+  const ck = `yt:${order}:${q}`;
+  const cached = store.get(ck, null);
+  if (cached && Date.now() - cached.t < 12 * 3600 * 1000) return cached.items;
+
+  const params = new URLSearchParams({
+    part: 'snippet', q, type: 'video', maxResults: '10', order,
+    regionCode: 'JP', relevanceLanguage: 'ja', key: apiKey,
+  });
+  if (order === 'date') {
+    params.set('publishedAfter', new Date(Date.now() - 365 * 86400000).toISOString().replace(/\.\d+Z$/, 'Z'));
+  }
+  const res = await fetch('https://www.googleapis.com/youtube/v3/search?' + params);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const m = data?.error?.message || `HTTP ${res.status}`;
+    if (/quota/i.test(m)) throw new Error('本日のYouTube検索回数の上限に達しました。明日になると回復します。');
+    if (res.status === 403) throw new Error(`YouTubeの動画を取得できませんでした。APIキーで「YouTube Data API v3」が有効か確認してください。(${decodeEntities(m)})`);
+    throw new Error(`動画の取得に失敗しました。(${decodeEntities(m)})`);
+  }
+  const items = (data.items || []).filter((it) => it.id?.videoId).map((it) => ({
+    id: it.id.videoId,
+    title: decodeEntities(it.snippet.title),
+    channel: decodeEntities(it.snippet.channelTitle),
+    thumb: it.snippet.thumbnails?.medium?.url || it.snippet.thumbnails?.default?.url || '',
+    published: it.snippet.publishedAt,
+  }));
+  store.set(ck, { t: Date.now(), items });
+  return items;
+}
+
+async function loadVideos() {
+  const token = ++video.token;
+  video.loading = true; video.error = null; video.items = [];
+  renderVideos();
+  try {
+    const items = await youtubeSearch(video.query, video.order);
+    if (token !== video.token) return;
+    video.items = items;
+  } catch (e) {
+    if (token !== video.token) return;
+    video.error = e.message;
+  } finally {
+    if (token === video.token) { video.loading = false; renderVideos(); }
+  }
+}
+
+function renderVideos() {
+  const el = $('#videoList');
+  if (!el) return;
+  if (video.loading) el.innerHTML = '<li class="note"><span class="spinner"></span>動画を探しています…</li>';
+  else if (video.error) el.innerHTML = `<li class="note error">${esc(video.error)}</li>`;
+  else if (!video.items.length) el.innerHTML = '<li class="note">関連する動画が見つかりませんでした。</li>';
+  else el.innerHTML = video.items.map((v) => `<li><a class="video" href="https://www.youtube.com/watch?v=${encodeURIComponent(v.id)}" target="_blank" rel="noopener">
+      <img src="${esc(v.thumb)}" alt="" loading="lazy">
+      <div><div class="vtitle">${esc(v.title)}</div><div class="vmeta">${esc(v.channel)}${v.published ? ' ・ ' + esc(relTime(v.published)) : ''}</div></div>
+    </a></li>`).join('');
+}
+
+// ===== 現在地 =====
+function locate(force = false) {
+  if (!apiKey) return;
+  if (!('geolocation' in navigator)) {
+    state.locError = 'この端末では位置情報が使えません。'; renderAll(); return;
+  }
+  state.locError = null;
+  if (!state.loc) renderAll();
+  navigator.geolocation.getCurrentPosition((pos) => {
+    state.loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+    state.locError = null;
+    runSearch('nearby', { force });
+    runSearch('dish', { force });
+  }, (err) => {
+    state.locError = err.code === 1
+      ? '位置情報が許可されていません。「設定」タブの手順で許可してから、右上のボタンを押してください。'
+      : '現在地を取得できませんでした。電波の良い場所で、右上のボタンをもう一度押してください。';
+    renderAll();
+  }, { enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 });
+}
+
+// ===== タブ =====
+function showTab(name) {
+  for (const t of ['nearby', 'dish', 'settings']) $(`#view-${t}`).hidden = t !== name;
+  document.querySelectorAll('.tabs button').forEach((b) => b.classList.toggle('on', b.dataset.tab === name));
+  $('#title').textContent = TITLES[name];
+  $('#locateBtn').hidden = name === 'settings';
+  store.set('tab', name);
+  window.scrollTo({ top: 0 });
+}
+
+function renderAll() { renderList('nearby'); renderList('dish'); }
+
+// ===== 動作チェック =====
+async function runDiagnostics() {
+  const out = $('#diagOut');
+  const lines = [];
+  const log = (ok, label, detail = '') => {
+    lines.push(`${ok === null ? '…' : ok ? '✅' : '❌'} ${label}${detail ? '\n   ' + detail : ''}`);
+    out.textContent = lines.join('\n');
+  };
+  out.hidden = false; $('#copyDiag').hidden = true;
+  $('#runDiag').disabled = true;
+
+  lines.push(`URL: ${location.href}`);
+  lines.push(`ブラウザ: ${navigator.userAgent}`);
+  lines.push(`ホーム画面から起動: ${matchMedia('(display-mode: standalone)').matches || navigator.standalone ? 'はい' : 'いいえ'}`);
+
+  try {
+    if (!apiKey) { log(false, 'APIキー', '未登録です'); return; }
+    log(apiKey.startsWith('AIza') && apiKey.length === 39, 'APIキー', `${apiKey.slice(0, 6)}… (${apiKey.length}文字)${apiKey.length !== 39 ? ' ※通常は39文字です。コピー漏れや余分な文字がないか確認してください' : ''}`);
+
+    if (mapsAuthError) log(false, 'Google マップ認証', mapsAuthError);
+
+    // 1. Google マップの読み込み
+    let places;
+    try {
+      places = await withTimeout(google.maps.importLibrary('places'), 15000, 'Google マップの読み込み');
+      log(true, 'Google マップの読み込み', `Place: ${typeof places.Place}`);
+    } catch (e) { log(false, 'Google マップの読み込み', errText(e)); return; }
+
+    // 2. 位置情報
+    const loc = state.loc;
+    log(!!loc, '位置情報', loc ? `${loc.lat.toFixed(4)}, ${loc.lng.toFixed(4)}` : (state.locError || 'まだ取得できていません'));
+    const center = loc || { lat: 34.6937, lng: 135.5023 }; // 取れないときは大阪駅付近で試す
+
+    // 3. お店検索(最小の項目で)
+    try {
+      const { places: found } = await withTimeout(places.Place.searchNearby({
+        fields: ['id', 'displayName'],
+        locationRestriction: { center, radius: 500 },
+        includedTypes: ['restaurant'],
+        maxResultCount: 1,
+        language: 'ja',
+      }), 15000, 'お店検索');
+      log(true, 'お店検索(最小)', found?.[0]?.displayName || '0件');
+    } catch (e) { log(false, 'お店検索(最小)', errText(e)); }
+
+    // 4. お店検索(アプリと同じ項目で)
+    try {
+      const found = await withTimeout(searchNearby(center, 500), 15000, 'お店検索');
+      log(true, 'お店検索(本番と同じ項目)', `${found.length}件`);
+    } catch (e) { log(false, 'お店検索(本番と同じ項目)', errText(e)); }
+
+    // 5. YouTube(1ユニットしか使わない軽い呼び出し)
+    try {
+      const res = await withTimeout(fetch('https://www.googleapis.com/youtube/v3/videos?' + new URLSearchParams({
+        part: 'id', chart: 'mostPopular', regionCode: 'JP', maxResults: '1', key: apiKey,
+      })), 15000, 'YouTube');
+      const data = await res.json().catch(() => ({}));
+      log(res.ok, 'YouTube', res.ok ? 'OK' : `HTTP ${res.status} ${decodeEntities(data?.error?.message || '')}`);
+    } catch (e) { log(false, 'YouTube', errText(e)); }
+  } finally {
+    lines.push('\nチェック完了');
+    out.textContent = lines.join('\n');
+    $('#runDiag').disabled = false;
+    $('#copyDiag').hidden = false;
+  }
+}
+
+// ===== 起動 =====
+function init() {
+  renderControls('nearby');
+  renderControls('dish');
+  renderChips();
+  $('#dishInput').value = state.dish.query;
+  $('#keyInput').value = apiKey;
+
+  document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
+  $('#locateBtn').addEventListener('click', () => locate(true));
+  $('#dishForm').addEventListener('submit', (e) => { e.preventDefault(); setDish($('#dishInput').value); });
+  $('#chips').addEventListener('click', (e) => { const b = e.target.closest('.chip'); if (b) setDish(b.dataset.q); });
+  for (const kind of ['nearby', 'dish']) {
+    $(`#${kind}List`).addEventListener('click', (e) => {
+      const b = e.target.closest('.row');
+      if (b) openDetail(state[kind].sorted[Number(b.dataset.i)]);
+    });
+  }
+  $('#backBtn').addEventListener('click', closeDetail);
+
+  $('#saveKey').addEventListener('click', () => {
+    store.set('apiKey', $('#keyInput').value.trim());
+    store.set('tab', 'nearby');
+    location.reload();
+  });
+  $('#toggleKey').addEventListener('click', () => {
+    const i = $('#keyInput');
+    i.type = i.type === 'password' ? 'text' : 'password';
+    $('#toggleKey').textContent = i.type === 'password' ? '表示' : '隠す';
+  });
+  $('#clearCache').addEventListener('click', () => {
+    let n = 0;
+    try {
+      for (const k of Object.keys(localStorage)) if (k.startsWith('yt:')) { localStorage.removeItem(k); n++; }
+    } catch {}
+    $('#cacheMsg').textContent = `${n}件の検索結果を消しました。`;
+  });
+
+  $('#runDiag').addEventListener('click', runDiagnostics);
+  $('#copyDiag').addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText($('#diagOut').textContent); $('#copyDiag').textContent = 'コピーしました'; }
+    catch { $('#copyDiag').textContent = 'コピーできませんでした(長押しで選択してください)'; }
+  });
+
+  showTab(apiKey ? store.get('tab', 'nearby') : 'settings');
+  renderAll();
+  if (apiKey) { loadMaps(apiKey); locate(); }
+}
+
+init();
+</script>
+</body>
+</html>
